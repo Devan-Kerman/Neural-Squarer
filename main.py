@@ -21,12 +21,13 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '0.8'
 os.environ['JAX_DEBUG_NANS'] = 'True'
 
+print("Initializing JAX!")
 import jax
 import jax.numpy as jnp
 import jax.random as rand
 from jax import jit
 
-print(jax.devices())
+print(f"Recognized Devices: {jax.devices()}")
 
 def layer_params(m, n, key, scale=1e-2):
     mKey, bKey = rand.split(key)
@@ -76,30 +77,36 @@ def create_batches(xs, ys, batch_size):
 def exponential_decay(initial_lr, decay_rate, epoch, min_lr=1e-6):
     return max(initial_lr * decay_rate ** epoch, min_lr)
 
-
 def main():
-    layers = [1, 25, 25, 25, 25, 25, 1]
     key = rand.PRNGKey(4)
+
+    print("Initializing Network Parameters!")
+    layers = [1, 25, 25, 25, 25, 25, 1]
     parameters = dense_layer(layers, key)
+
+    print("Initializing Training Data Set!")
     key, _ = rand.split(key)
     xs = rand.uniform(key, (1_000_000, 1), minval=-10, maxval=10)
     ys = xs ** 2
+
+    print("Initializing Training Batches!")
     xs_batches, ys_batches = create_batches(xs, ys, 1_000)
-    print("Starting Training!")
+
     initial_lr = 0.01
     decay_rate = 0.99
 
-    for i in range(1000):
+    print("Starting Training!")
+    for i in range(100000):
         if terminate_program:
             break
+
         learning_rate = exponential_decay(initial_lr, decay_rate, i)
-        print(f"Epoch {i}, learning rate: {learning_rate:.6f}")
         for xs_batch, ys_batch in zip(xs_batches, ys_batches):
             parameters = update(parameters, xs_batch, ys_batch, learning_rate)
 
         key, _ = rand.split(key)
         test = rand.randint(key, minval=0, maxval=1_000_000, shape=(1,))[0]
-        print(f"{i:-2d} | x={xs[test][0]:6.3f} | x^2={ys[test][0]:6.3f} | ~x^2={propagate(parameters, xs[test])[0]:6.3f} | loss={jnp.mean(loss(parameters, xs, ys)):6.3f}")
+        print(f"epoch={i:-3d} | lr={learning_rate:5.4f} | x0={xs[test][0]:6.3f} | x0^2={ys[test][0]:6.3f} | ~x^2={propagate(parameters, xs[test])[0]:6.3f} | loss={jnp.mean(loss(parameters, xs, ys)):6.3f}")
 
 
 # Press the green button in the gutter to run the script.
